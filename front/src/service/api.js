@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const url = 'http://localhost:3001';
+const url = 'https://whatsappclone-2.onrender.com';
 
 // export const getImage = async (picture) => {
 //     const response = await fetch(picture);

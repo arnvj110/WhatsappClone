@@ -1,7 +1,7 @@
 import { Box, Typography, Paper } from '@mui/material';
 import TailOut from '../../Icons/TailOut';
 import TainIn from '../../Icons/TainIn';
-import { format } from 'date-fns';
+
 import styled from 'styled-components';
 import Tick from '../../Icons/Tick';
 import { useState, useRef } from 'react';
@@ -112,18 +112,25 @@ const TextMessage = ({ message }) => {
 
 
 const ImageMessage = ({ message, isOwn }) => {
+  
   const [hover, setHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const url = message.value;
-
-  const rawFileName = new URL(url).pathname.split('/').pop();
+  
+  let rawFileName;
+  try {
+    rawFileName = new URL(url).pathname.split('/').pop();
+    
+  } catch {
+    rawFileName = url.split('/').pop();
+  }
   const decodedFileName = decodeURIComponent(rawFileName);
 
+  
+  const actualFileName = decodedFileName.split('file-').pop() ?? decodedFileName;
 
-  const actualFileName = decodedFileName.split('file-')[1] ?? decodedFileName;
-
-
-
+  
+  
 
   const handleEnter = () => setHover(true);
   const handleLeave = () => {
@@ -133,7 +140,7 @@ const ImageMessage = ({ message, isOwn }) => {
     }, 200);
   };
 
-  return [".pdf", ".docx", ".pptx"].some(ext => actualFileName?.endsWith(ext)) ? (
+  return [".pdf", ".docx", ".pptx", ".xlsx"].some(ext => actualFileName?.endsWith(ext)) ? (
     <Box display="flex" flexDirection="column" alignItems="flex-end"  >
       
       <Box
@@ -181,20 +188,23 @@ const ImageMessage = ({ message, isOwn }) => {
       onMouseLeave={handleLeave}
       sx={{ position: 'relative' }}
     >
-      <img
-        src={message.value}
-        alt="sent"
-        style={{
-          width: '100%',
-          maxWidth: '700px',
-          height: 'auto',
-          maxHeight: '350px',
-          objectFit: 'contain',
-          borderRadius: '6px',
-          margin: '3px auto',
-          display: 'block',
-        }}
-      />
+      {message.value ? (
+  <img
+    src={message.value}
+    alt="sent"
+    style={{
+      width: '100%',
+      maxWidth: '700px',
+      height: 'auto',
+      maxHeight: '350px',
+      objectFit: 'contain',
+      borderRadius: '6px',
+      margin: '3px auto',
+      display: 'block',
+    }}
+  />
+) : null}
+
 
       <Time $isImage={true} sx={{ position: 'absolute', bottom: 6, right: 6 }}>
         <TimeStamp time={message.createdAt} />
