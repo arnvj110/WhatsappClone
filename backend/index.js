@@ -4,7 +4,7 @@ import { Connection } from './DB/db.js';
 import route from './routes/route.js';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import initSocket from './socket.js';
+import initSocket from './socket/socket.js';
 
 const app = express();
 const server = createServer(app);
