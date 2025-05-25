@@ -133,7 +133,7 @@ const SettingsPage = () => {
       </Header>
       <Search placeholder={'Search settings'} autoFocus={true} />
       <Body1>
-        <SettingDiv title={'Arnav Jain'} desc={'Available'} image={image} />
+        <SettingDiv title={account?.name || 'Arnav Jain'} desc={'Available'} image={image} />
         <Partition />
         <SettingDiv title={'Account'} desc={'Security notifications, account info'} gap={'gap: 20px;'} />
         <SettingDiv title={'Privacy'} desc={'Blocked contacts, disappearing messages'} gap={'gap: 20px;'} />

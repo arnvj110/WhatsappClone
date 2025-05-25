@@ -65,7 +65,7 @@ const ProfilePage = () => {
             <Component2>
                 <Box1>Your name</Box1>
                 <Component3>
-                    <Typography sx={{fontSize:'16px'}} >Arnav Jain</Typography>
+                    <Typography sx={{fontSize:'16px'}} >{account?.name || 'Arnav Jain'}</Typography>
 
                 </Component3>
 
