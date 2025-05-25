@@ -13,9 +13,10 @@ const getUser = (userId) => {
 
 export default function initSocket(server) {
   const io = new Server(server, {
-    cors: {
-      origin: "https://whatsapp-clone-onbx.vercel.app/", 
-    },
+   cors: {
+    origin: ["http://localhost:5173", "https://whatsapp-clone-onbx.vercel.app"],
+    methods: ["GET", "POST"]
+  }
   });
 
   io.on("connection", (socket) => {
