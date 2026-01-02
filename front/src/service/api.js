@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const url = 'https://whatsappclone-3.onrender.com';
+const url = import.meta.env.VITE_BACKEND_URL;
+
 
 // export const getImage = async (picture) => {
 //     const response = await fetch(picture);

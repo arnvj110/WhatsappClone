@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const url = "https://whatsappclone-2.onrender.com";
+const url = process.env.URL;
+console.log("Backend URL:", url);
 
 let gridFsBucket,gfs;
 const conn = mongoose.connection;

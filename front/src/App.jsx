@@ -6,7 +6,8 @@ import AccountProvider from './components/context/AccountProvider';
 
 
 const App = () => {
-  const clientId = '1081310591326-hqcop0qt6rhfqbarm80c0gn0mavrhjt2.apps.googleusercontent.com';
+  const clientId = import.meta.env.VITE_CLIENT_ID;
+  console.log("Client ID:", clientId);
 
   return (
     <GoogleOAuthProvider clientId={clientId} >
