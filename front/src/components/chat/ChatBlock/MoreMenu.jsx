@@ -46,7 +46,7 @@ const MoreMenu = ({ anchorEl, open, onClose, onFileChange }) => {
         },
       }}
     >
-        <label htmlFor="fileInput">
+        <label htmlFor="file-upload-input">
       <Component >
         
         <Document /> Document

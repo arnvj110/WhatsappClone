@@ -38,7 +38,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 try {
   const route = await import('./routes/route.js');
   app.use('/api', route.default);
-  console.log("✅ Routes loaded successfully");
+  
 } catch (error) {
   console.error("❌ Routes loading error:", error.message);
 }
@@ -114,7 +114,22 @@ io.on("connection", (socket) => {
     io.emit("getUsers", users);
     console.log(`❌ User disconnected: ${socket.id}, Remaining: ${users.length}`);
   });
+  socket.on("typing", ({ senderId, receiverId }) => {
+  const user = getUser(receiverId);
+  if (user) {
+    io.to(user.socketId).emit("typing", { senderId });
+  }
 });
+
+socket.on("stopTyping", ({ senderId, receiverId }) => {
+  const user = getUser(receiverId);
+  if (user) {
+    io.to(user.socketId).emit("stopTyping", { senderId });
+  }
+});
+});
+
+
 
 // Start server
 server.listen(PORT, () => {

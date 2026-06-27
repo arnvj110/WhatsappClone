@@ -1,18 +1,18 @@
+// controllers/messageController.js
 import Conversation from "../model/ConversationModel.js";
 import Message from "../model/MessageModel.js";
 
 export const addMessage = async (req, res) => {
     try {
-        const { conversationId, senderId, receiverId, type, value } = req.body;
+        const { conversationId, senderId, receiverId, type, value, originalName } = req.body;
 
-        // Validation
         if (!conversationId || !senderId || !receiverId || !value) {
-            return res.status(400).json({ 
-                message: "conversationId, senderId, receiverId, and value are required" 
+            return res.status(400).json({
+                message: "conversationId, senderId, receiverId, and value are required",
+                received: { conversationId, senderId, receiverId, value }
             });
         }
 
-        // Verify conversation exists
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
             return res.status(404).json({ message: "Conversation not found" });
@@ -23,21 +23,23 @@ export const addMessage = async (req, res) => {
             senderId,
             receiverId,
             type: type || 'text',
-            value
+            value,
+            originalName: originalName || null, // store original filename for documents
         });
 
         await newMessage.save();
-        
-        // Update conversation's last message
+
+        // Update conversation preview
+        const preview = type === 'file' ? '📎 File' : value;
         await Conversation.findByIdAndUpdate(
             conversationId,
-            { message: value },
+            { message: preview },
             { new: true }
         );
 
-        return res.status(201).json({ 
+        return res.status(201).json({
             message: "Message sent successfully!",
-            data: newMessage 
+            data: newMessage
         });
 
     } catch (error) {
@@ -54,10 +56,7 @@ export const getMessages = async (req, res) => {
             return res.status(400).json({ message: "Conversation ID is required" });
         }
 
-        const messages = await Message.find({
-            conversationId: id
-        }).sort({ createdAt: 1 }); // Sort by creation time
-
+        const messages = await Message.find({ conversationId: id }).sort({ createdAt: 1 });
         return res.status(200).json(messages);
 
     } catch (error) {

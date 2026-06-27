@@ -4,66 +4,121 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import { generateSasUrl } from './azureHelpers.js';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
 
 dotenv.config();
 
 const AZURE_CONNECTION_STRING = process.env.AZURE_CONNECTION_STRING;
 const AZURE_CONTAINER_NAME = process.env.AZURE_CONTAINER_NAME;
 
-// --- In-memory storage engine for multer ---
-const storage = multer.memoryStorage();
+// --- Allowed MIME types and their extensions ---
+const MIME_TO_EXT = {
+  // Images
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/bmp': '.bmp',
+  'image/tiff': '.tiff',
+  // jfif is served as image/jpeg by browsers
+  'image/jfif': '.jpg',
+
+  // Documents
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'text/plain': '.txt',
+
+  // Archives
+  'application/zip': '.zip',
+  'application/x-rar-compressed': '.rar',
+  'application/x-7z-compressed': '.7z',
+};
+
+const ALLOWED_MIMES = Object.keys(MIME_TO_EXT);
+
+// File size limits per type (in bytes)
+const SIZE_LIMITS = {
+  image: 5 * 1024 * 1024,   // 5MB for images
+  document: 20 * 1024 * 1024, // 20MB for documents
+  archive: 50 * 1024 * 1024,  // 50MB for archives
+};
+
+const getFileCategory = (mimetype) => {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('application/zip') || mimetype.includes('rar') || mimetype.includes('7z')) return 'archive';
+  return 'document';
+};
 
 // --- File filter ---
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = ["image/png", "image/jpg", "image/jpeg", "image/gif", "image/webp"];
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Invalid file type. Only images are allowed.'), false);
-    }
+  // Handle .jfif — browsers send it as image/jpeg, but originalname may end in .jfif
+  // We accept it since mimetype will be image/jpeg
+  if (ALLOWED_MIMES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`File type not allowed: ${file.mimetype}. Allowed: images, PDF, Word, Excel, PowerPoint, ZIP.`), false);
+  }
 };
 
-export const upload = multer({ 
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    }
+// --- Multer with high limit (we enforce per-category limits manually) ---
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB ceiling — per-category check below
+  },
 });
 
-// --- Middleware function to handle upload to Azure ---
+// --- Azure upload middleware ---
 export const uploadToAzure = async (req, res, next) => {
-    if (!req.file) {
-        return res.status(400).json({ message: "No file provided" });
-    }
+  if (!req.file) {
+    return res.status(400).json({ message: "No file provided" });
+  }
 
-    try {
-        const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_CONNECTION_STRING);
-        const containerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
+  const { mimetype, size, originalname } = req.file;
+  const category = getFileCategory(mimetype);
 
-        // Preserve original extension, use UUID for uniqueness
-        const ext = path.extname(req.file.originalname);
-        const blobName = `${uuidv4()}${ext}`;
+  // Per-category size check
+  if (size > SIZE_LIMITS[category]) {
+    const limitMB = SIZE_LIMITS[category] / (1024 * 1024);
+    return res.status(400).json({
+      message: `File too large. ${category} files must be under ${limitMB}MB.`,
+    });
+  }
 
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  try {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_CONNECTION_STRING);
+    const containerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
 
-        // Upload the file buffer to Azure
-        await blockBlobClient.uploadData(req.file.buffer, {
-            blobHTTPHeaders: { blobContentType: req.file.mimetype },
-        });
+    // Derive extension from mimetype — fixes .jfif → .jpg
+    const ext = MIME_TO_EXT[mimetype] || '.bin';
+    const blobName = `${uuidv4()}${ext}`;
 
-        // Use generateSasUrl from azureHelpers (single source of truth)
-        req.file.azureUrl = generateSasUrl(blobName);
-        req.file.blobName = blobName;
-        console.log("🔍 mimetype:", req.file.mimetype, "→ ext:", ext, "→ blobName:", blobName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-        next();
-    } catch (error) {
-        console.error("Azure upload error:", error);
-        return res.status(500).json({ 
-            message: "File upload failed", 
-            error: error.message 
-        });
-    }
+    await blockBlobClient.uploadData(req.file.buffer, {
+      blobHTTPHeaders: {
+        blobContentType: mimetype,
+        blobContentDisposition: `attachment; filename="${originalname}"`, // preserves original name on download
+      },
+    });
+
+    req.file.azureUrl = generateSasUrl(blobName);
+    req.file.blobName = blobName;
+    req.file.originalName = originalname; // pass through for DB storage
+    req.file.category = category;
+
+    next();
+  } catch (error) {
+    console.error("Azure upload error:", error);
+    return res.status(500).json({
+      message: "File upload to Azure failed",
+      error: error.message,
+    });
+  }
 };
