@@ -8,7 +8,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import ReplyMore from '../../Icons/ReplyMore';
 
 import MoreMenu from './MoreMenu';
-import { UploadImage } from '../../../service/api';
+import { UploadImage } from '../../context/api';
 import { AccountContext } from '../../context/AccountProvider';
 
 
@@ -165,8 +165,8 @@ const ReplyBlock = ({ sendText, setValue, value, file, setFile, setImage }) => {
                 data.append("file", file);
 
                 const res = await UploadImage(data);
-
-                setImage(res.data.data.path);
+                console.log(res);
+                setImage(res.data.blobName);
             }
         }
         getImage();

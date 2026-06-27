@@ -1,7 +1,7 @@
 import { useEffect, useState, useContext } from "react";
 import styled from "styled-components";
 import { Box } from "@mui/material";
-import { getUsers } from "../../../service/api";
+import { getUsers } from "../../context/api";
 import Conversation from "./Conversation";
 import { AccountContext } from "../../context/AccountProvider";
 
@@ -53,9 +53,8 @@ const Connections = ({ value }) => {
   useEffect(() => {
     const fetchData = async () => {
       const res = await getUsers();
-      if (res?.status === 200) {
-        setData(res.data);
-      }
+      
+      setData(res);
     };
     fetchData();
   }, []);

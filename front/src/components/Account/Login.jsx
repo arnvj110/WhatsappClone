@@ -1,32 +1,28 @@
-import { Box, Dialog, List, ListItem, ListItemText, styled, Typography } from '@mui/material'
-import React, { useContext } from 'react'
-import {GoogleLogin} from '@react-oauth/google';
+// src/components/Account/Login.jsx
+import { Box, Dialog, List, ListItem, ListItemText, styled, Typography } from '@mui/material';
+import React, { useContext } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { AccountContext } from '../context/AccountProvider';
-import { addUser } from '../../service/api';
-
-
+import { addUser } from '../context/api'; // ✅ Correct path
 
 const Component = styled(Box)`
   display: flex;
-  
   justify-content: center;
-  
   padding: 20px;
-`
+`;
 
 const Container = styled(Box)`
   padding-top: 50px;
   color: #525252;
-  
-`
-const Title = styled(Typography)`
-font-size: 25px;
+`;
 
-font-weight: 300;
-font-family: inherit;
-margin-bottom: 25px;
-`
+const Title = styled(Typography)`
+  font-size: 25px;
+  font-weight: 300;
+  font-family: inherit;
+  margin-bottom: 25px;
+`;
 
 const StyledList = styled(List)`
   & > li {
@@ -35,58 +31,80 @@ const StyledList = styled(List)`
     font-size: 10px;
     line-height: 28px;
   }
-`
+`;
 
 const QrCode = styled(Box)({
   height: 264,
   width: 264,
   margin: '50px 0 0 50px',
   position: 'relative'
-
-})
-
-
-
-
-
+});
 
 const dialogStyle = {
   height: '95%',
   marginTop: '12%',
   width: '60%',
   minWidth: '800px',
-
   maxHeight: '100%',
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.3)',
   border: 'none',
-  
-}
+};
 
 const LoginBlock = styled(Box)`
   position: absolute;
-  top: 50%;
+  bottom: -60px;
   left: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
 `;
 
-
 const Login = () => {
-  const {setAccount} = useContext(AccountContext);
+  const { setAccount } = useContext(AccountContext);
 
   const onLoginSuccess = async (res) => {
-    
-    const decoded = jwtDecode(res.credential);
-    setAccount(decoded);
-    
-    await addUser(decoded);
+    try {
+      console.log("🔐 Google login success, decoding token...");
+      
+      const decoded = jwtDecode(res.credential);
+      console.log("👤 Decoded user:", {
+        sub: decoded.sub,
+        name: decoded.name,
+        email: decoded.email,
+        picture: decoded.picture?.substring(0, 50) + '...'
+      });
+      
+      // Set account in context
+      setAccount(decoded);
+      console.log("✅ Account set in context");
+      
+      // Save to backend
+      console.log("💾 Saving user to backend...");
+      const result = await addUser({
+        sub: decoded.sub,
+        name: decoded.name,
+        picture: decoded.picture,
+        email: decoded.email,
+      });
+      
+      console.log("✅ User saved to database:", result);
+      
+    } catch (error) {
+      console.error("❌ Login error details:");
+      console.error("  - Error:", error);
+      console.error("  - Message:", error.message);
+      console.error("  - Response:", error.response?.data);
+      
+      alert(`Login failed: ${error.response?.data?.message || error.message}`);
+    }
+  };
 
-    
-  }
-
-  const onLoginFail = () => {
-    console.log("Login Fail!");
-  }
+  const onLoginFail = (error) => {
+    console.error("❌ Google Login Failed:", error);
+    alert("Google login failed. Please try again.");
+  };
 
   return (
     <Dialog
@@ -115,23 +133,20 @@ const Login = () => {
 
         <QrCode>
           <img
-            src="qr.png"
+            src="/qr.png"
             alt="qr_code"
             style={{ width: '100%', height: '100%' }}
           />
           <LoginBlock>
-          <GoogleLogin
-            onSuccess={onLoginSuccess}
-            onError={onLoginFail}
-          />
-        </LoginBlock>
+            <GoogleLogin
+              onSuccess={onLoginSuccess}
+              onError={onLoginFail}
+            />
+          </LoginBlock>
         </QrCode>
-        
       </Component>
-      
     </Dialog>
+  );
+};
 
-  )
-}
-
-export default Login
+export default Login;

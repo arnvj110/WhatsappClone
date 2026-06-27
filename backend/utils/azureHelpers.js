@@ -1,5 +1,5 @@
 // utils/azureHelpers.js
-import { BlobServiceClient, generateBlobSASQueryParameters, StorageSharedKeyCredential, SASProtocol } from '@azure/storage-blob';
+import { BlobServiceClient, generateBlobSASQueryParameters, StorageSharedKeyCredential, SASProtocol, BlobSASPermissions } from '@azure/storage-blob';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -25,7 +25,7 @@ export const generateSasUrl = (blobName, expiryMinutes = 60) => {
             containerName: AZURE_CONTAINER_NAME,
             blobName: blobName,
             expiresOn: new Date(new Date().valueOf() + expiryMinutes * 60 * 1000),
-            permissions: 'r', // Read permission
+            permissions: BlobSASPermissions.parse('r'), // Read permission
             protocol: SASProtocol.Https,
         };
 
@@ -67,4 +67,8 @@ export const deleteFile = async (blobName) => {
         console.error("Error deleting file:", error);
         throw error;
     }
+};
+
+export const getBlobServiceClient = () => {
+  return BlobServiceClient.fromConnectionString(process.env.AZURE_CONNECTION_STRING);
 };

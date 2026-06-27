@@ -1,10 +1,10 @@
 import { Box, Typography, Paper } from '@mui/material';
 import TailOut from '../../Icons/TailOut';
 import TainIn from '../../Icons/TainIn';
-
+import { getFileUrl } from '../../context/api'; 
 import styled from 'styled-components';
 import Tick from '../../Icons/Tick';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import DownloadDrop from './DownloadDrop';
 import TimeStamp from '../../TimeStamp';
 
@@ -112,120 +112,124 @@ const TextMessage = ({ message }) => {
 
 
 const ImageMessage = ({ message, isOwn }) => {
-  
   const [hover, setHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const url = message.value;
-  
-  let rawFileName;
-  try {
-    rawFileName = new URL(url).pathname.split('/').pop();
-    
-  } catch {
-    rawFileName = url.split('/').pop();
-  }
-  const decodedFileName = decodeURIComponent(rawFileName);
+  const [resolvedUrl, setResolvedUrl] = useState('');   // ← fresh SAS URL
 
-  
-  const actualFileName = decodedFileName.split('file-').pop() ?? decodedFileName;
+  // Fetch a fresh SAS URL from blobName on every mount
+  useEffect(() => {
+  const fetchUrl = async () => {
+    try {
+      const sasUrl = await getFileUrl(message.value);
 
-  
-  
+      if (message.value.endsWith('.jfif')) {
+        const blob = await fetch(sasUrl).then(r => r.blob());
+        const fixedBlob = new Blob([blob], { type: 'image/jpeg' });
+        setResolvedUrl(URL.createObjectURL(fixedBlob));
+      } else {
+        setResolvedUrl(sasUrl);
+      }
+    } catch (e) {
+      console.error('Failed to resolve image URL:', e);
+    }
+  };
+  if (message.value) fetchUrl();
+}, [message.value]);
 
   const handleEnter = () => setHover(true);
   const handleLeave = () => {
-
     setTimeout(() => {
       if (!menuOpen) setHover(false);
     }, 200);
   };
 
-  return [".pdf", ".docx", ".pptx", ".xlsx"].some(ext => actualFileName?.endsWith(ext)) ? (
-    <Box display="flex" flexDirection="column" alignItems="flex-end"  >
-      
-      <Box
-        sx={{
-          maxWidth: '90%',
-          width: '300px',
-          bgcolor: isOwn ? '#DCF8C6' : '#FFF',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          
-        }}
-        
-      >
+  // Check if it's a document by blobName extension
+  const isDoc = [".pdf", ".docx", ".pptx", ".xlsx"]
+    .some(ext => message.value?.endsWith(ext));
 
-        <Box sx={{ display: 'flex', flexDirection:'column', gap: '5px', width: '100%' }}>
-          <Typography fontWeight="500">{actualFileName}</Typography>
-          <Typography fontSize="12px" color="#555">PNG · 4 kB</Typography>
-        </Box>
-
-
-        <DownloadDrop
-          fileUrl={message.value}
-          fileName="Dice-1.png"
-          onOpen={() => setMenuOpen(true)}
-          onClose={() => {
-            setMenuOpen(false);
-            setHover(false);
+  if (isDoc) {
+    return (
+      <Box display="flex" flexDirection="column" alignItems="flex-end">
+        <Box
+          sx={{
+            maxWidth: '90%',
+            width: '300px',
+            bgcolor: isOwn ? '#DCF8C6' : '#FFF',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
-        />
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
+            <Typography fontWeight="500">{message.value}</Typography>
+          </Box>
+          <DownloadDrop
+            fileUrl={message.value}
+            fileName={message.value}
+            onOpen={() => setMenuOpen(true)}
+            onClose={() => { setMenuOpen(false); setHover(false); }}
+          />
+        </Box>
+        <Time $isImage={false}>
+          <TimeStamp time={message.createdAt} />
+          {isOwn && <Tick />}
+        </Time>
       </Box>
+    );
+  }
 
-
-      <Time $isImage={false}>
-  <TimeStamp time={message.createdAt} />
-  {isOwn && <Tick />}
-</Time>
-
-    </Box>
-  ) : (
+  return (
     <Box
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       sx={{ position: 'relative' }}
     >
-      {message.value ? (
-  <img
-    src={message.value}
-    alt="sent"
-    style={{
-      width: '100%',
-      maxWidth: '700px',
-      height: 'auto',
-      maxHeight: '350px',
-      objectFit: 'contain',
-      borderRadius: '6px',
-      margin: '3px auto',
-      display: 'block',
-    }}
-  />
-) : null}
-
+      {resolvedUrl ? (
+        <img
+          src={resolvedUrl}                             // ← use resolvedUrl, not message.value
+          alt="sent"
+          style={{
+            width: '100%',
+            maxWidth: '700px',
+            height: 'auto',
+            maxHeight: '350px',
+            objectFit: 'contain',
+            borderRadius: '6px',
+            margin: '3px auto',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <Box sx={{ 
+          width: '200px', 
+          height: '100px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: '#667781',
+          fontSize: '12px'
+        }}>
+          Loading image...
+        </Box>
+      )}
 
       <Time $isImage={true} sx={{ position: 'absolute', bottom: 6, right: 6 }}>
         <TimeStamp time={message.createdAt} />
         {isOwn && <Tick />}
       </Time>
 
-      {(hover || menuOpen) && (
+      {(hover || menuOpen) && resolvedUrl && (
         <Box sx={{ position: 'absolute', top: 3, right: 4 }}>
           <DownloadDrop
-
-            fileUrl={message.value}
-            fileName="media"
+            fileUrl={message.value}                       // ← pass resolvedUrl here too
+            fileName={message.value}
             onOpen={() => setMenuOpen(true)}
-            onClose={() => {
-              setMenuOpen(false);
-              setHover(false);
-            }}
+            onClose={() => { setMenuOpen(false); setHover(false); }}
           />
         </Box>
       )}
     </Box>
   );
 };
-

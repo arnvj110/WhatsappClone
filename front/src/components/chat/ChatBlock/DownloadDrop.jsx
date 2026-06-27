@@ -2,6 +2,7 @@ import { Menu, styled, IconButton } from '@mui/material';
 import { useState } from 'react';
 import DownloadIcon from '../../Icons/DownloadIcon';
 import DropDownArrow from '../../Icons/DropDownArrow';
+import { getDownloadUrl } from '../../context/api';
 
 const Component = styled('div')(({ theme }) => ({
   display: 'flex',
@@ -28,31 +29,19 @@ const DownloadDrop = ({ fileUrl, onOpen, onClose }) => {
     onOpen?.();
   };
 
-  const handleDownload = (e, ogImage) => {
-    e.preventDefault();
-
-    try{
-      fetch(ogImage)
-      .then(res=>res.blob())
-      .then(blob=>{
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = "none";
-        a.href = url;
-
-        const nameSplit = ogImage.split("/");
-        const duplicateName = nameSplit.pop();
-
-        a.download = "" + duplicateName + "";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      })
-      .catch(error=>console.log("Error while downloading the image", error.message));
-    } catch(error){
-      console.log("Error while downloading the image", error.message);
-    }
-  };
+ const handleDownload = (e, blobName) => {
+  e.preventDefault();
+  
+  const downloadUrl = getDownloadUrl(blobName);  // backend proxy URL
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = downloadUrl;
+  a.download = blobName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  handleClose();  // close the menu after download
+};
 
   const handleClose = () => {
     setAnchorEl(null);

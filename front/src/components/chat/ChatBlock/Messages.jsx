@@ -7,7 +7,7 @@ import ReplyBlock from './ReplyBlock';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { AccountContext } from '../../context/AccountProvider';
 
-import { getMessages, newMessage } from '../../../service/api';
+import { getMessages, newMessage, getFileUrl } from '../../context/api';
 import { MessageBubble } from './MessageBubblr';
 
 
@@ -65,7 +65,25 @@ const MessageDiv = styled(Box)`
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 transparent;
 `
+const ImageMessage = ({ blobName }) => {
+  const [url, setUrl] = useState('');
 
+  useEffect(() => {
+    const fetchUrl = async () => {
+      try {
+        const res = await getFileUrl(blobName);
+        setUrl(res.data.url);
+      } catch (e) {
+        console.error('Failed to get image URL', e);
+      }
+    };
+    if (blobName) fetchUrl();
+  }, [blobName]);
+
+  return url
+    ? <img src={url} alt="shared" style={{ maxWidth: '250px', borderRadius: '8px', display: 'block' }} />
+    : <span style={{ color: '#667781', fontSize: '12px' }}>Loading image...</span>;
+};
 
 const Messages = ({ conversation }) => {
   const { account, person, socket, newMessageRender, setNewMessageRender } = useContext(AccountContext);
