@@ -2,12 +2,16 @@ import Conversation from "../model/ConversationModel.js";
 
 export const newConversation = async (req, res) => {
     try{
-        const senderId = req.body.senderId;
-        const receiverId = req.body.receiverId;
+        const {senderId, receiverId} = req.body;
+
+        if (!senderId || !receiverId) {
+            return res.status(400).json({ message: "SenderId and ReceiverId are required" });
+        }
 
         const exist = await Conversation.findOne({members : { $all : [ receiverId, senderId ]} });
 
         if(exist){
+
             return res.status(200).json("conversation already exists!");
         }
 
